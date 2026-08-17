@@ -97,7 +97,7 @@ final class EventTap {
         panel.hide()
         model = nil
         let target = m.selectedWindow
-        AXBridge.focus(windowID: target.id, pid: target.pid)
+        WindowFocus.focus(windowID: target.id, pid: target.pid)
     }
 
     private func cancel() {
