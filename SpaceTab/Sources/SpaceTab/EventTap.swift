@@ -9,7 +9,6 @@ final class EventTap {
     private var model: SwitcherModel?
     private var tap: CFMachPort?
     private var pendingShow: DispatchWorkItem?
-    private var panelVisible = false
 
     private enum Key: Int64 {
         case tab = 48, escape = 53, ret = 36, w = 13
@@ -98,7 +97,6 @@ final class EventTap {
         // switcher is still up after a short delay.
         let work = DispatchWorkItem { [weak self] in
             guard let self, let m = self.model else { return }
-            self.panelVisible = true
             self.panel.show(model: m)
         }
         pendingShow = work
@@ -109,7 +107,6 @@ final class EventTap {
         guard let m = model else { return }
         pendingShow?.cancel()
         pendingShow = nil
-        panelVisible = false
         panel.hide()
         model = nil
         let target = m.selectedWindow
@@ -157,7 +154,6 @@ final class EventTap {
     private func cancel() {
         pendingShow?.cancel()
         pendingShow = nil
-        panelVisible = false
         panel.hide()
         model = nil
     }
