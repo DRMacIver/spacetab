@@ -82,6 +82,20 @@ public struct SwitcherModel: Equatable {
         }
     }
 
+    /// Optimistically remove the selected window (e.g. while a close is in
+    /// flight). Selection stays at the same position, clamped. Returns false
+    /// when this was the last window anywhere — the switcher should close.
+    public mutating func removeSelectedWindow() -> Bool {
+        let column = columns[selectedColumn]
+        var windows = column.windows
+        windows.remove(at: selectedRow)
+        columns[selectedColumn] = SpaceColumn(
+            id: column.id, isCurrent: column.isCurrent, windows: windows)
+        guard columns.contains(where: { !$0.windows.isEmpty }) else { return false }
+        select(column: selectedColumn, row: selectedRow)
+        return true
+    }
+
     public mutating func moveRight() { moveHorizontally(by: 1) }
     public mutating func moveLeft() { moveHorizontally(by: -1) }
 

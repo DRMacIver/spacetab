@@ -105,17 +105,27 @@ final class EventTap {
     }
 
     private func closeSelected() {
-        guard let m = model else { return }
+        guard var m = model else { return }
         let target = m.selectedWindow
+        let spaceID = m.columns[m.selectedColumn].id
+
+        // Optimistic: drop the row from the list immediately; the rebuild
+        // below resurrects it if the window refused to close (unsaved
+        // changes dialog, etc.).
+        if m.removeSelectedWindow() {
+            model = m
+            panel.update(model: m)
+        } else {
+            cancel()
+        }
+
         AXBridge.close(windowID: target.id, pid: target.pid,
-                       spaceID: m.columns[m.selectedColumn].id) { [weak self] ok in
+                       spaceID: spaceID) { [weak self] ok in
             guard let self else { return }
             if !ok {
                 NSLog("SpaceTab: could not close window \(target.id) (\(target.appName))")
             }
-            // Rebuild after the window has had a moment to go away, keeping
-            // the selection in place. Cmd may have been released meanwhile.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 guard let old = self.model else { return }
                 guard var fresh = SwitcherModel(columns: WindowList.snapshot()) else {
                     self.cancel()

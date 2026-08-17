@@ -117,6 +117,34 @@ do {
     check(m.selectedColumn == 0 && m.selectedRow == 1, "selectClampsColumn")
 }
 
+// removeSelectedWindow keeps selection position, clamped
+do {
+    var m = SwitcherModel(columns: [
+        SpaceColumn(id: 1, isCurrent: true, windows: [w(1), w(2), w(3)]),
+    ])!
+    m.moveDown() // row 2
+    check(m.removeSelectedWindow(), "removeReturnsTrueWhenWindowsRemain")
+    check(m.selectedWindow == w(2) && m.selectedRow == 1, "removeClampsSelection")
+}
+
+// removing the last window in a column moves to another column
+do {
+    var m = SwitcherModel(columns: [
+        SpaceColumn(id: 1, isCurrent: true, windows: [w(1)]),
+        SpaceColumn(id: 2, isCurrent: false, windows: [w(2)]),
+    ])!
+    check(m.removeSelectedWindow(), "removeLastInColumnSurvives")
+    check(m.selectedWindow == w(2), "removeMovesToOtherColumn")
+}
+
+// removing the very last window signals shutdown
+do {
+    var m = SwitcherModel(columns: [
+        SpaceColumn(id: 1, isCurrent: true, windows: [w(1)]),
+    ])!
+    check(!m.removeSelectedWindow(), "removeLastWindowReturnsFalse")
+}
+
 if failures > 0 {
     print("\(failures) failure(s)")
     exit(1)

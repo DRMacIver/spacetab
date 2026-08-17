@@ -43,24 +43,22 @@ enum AXBridge {
             button as! AXUIElement, kAXPressAction as CFString) == .success
     }
 
-    /// Close a window that may live on another space: AX can't see those, so
-    /// hop to the space, close, and hop back.
+    /// Close a window that may live on another space. AX can't see windows
+    /// on non-current spaces, so as a last resort switch to the window's
+    /// space and stay there (hopping back proved jarring).
     static func close(windowID: UInt32, pid: pid_t, spaceID: UInt64,
                       completion: @escaping (Bool) -> Void) {
         if close(windowID: windowID, pid: pid) {
             completion(true)
             return
         }
-        let originalSpace = SkyLight.getActiveSpace(SkyLight.connection)
-        guard originalSpace != spaceID else {
+        guard SkyLight.getActiveSpace(SkyLight.connection) != spaceID else {
             completion(false)
             return
         }
         SkyLight.switchTo(space: spaceID)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            let ok = close(windowID: windowID, pid: pid)
-            SkyLight.switchTo(space: originalSpace)
-            completion(ok)
+            completion(close(windowID: windowID, pid: pid))
         }
     }
 
