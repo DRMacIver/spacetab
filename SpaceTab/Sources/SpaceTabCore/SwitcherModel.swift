@@ -5,12 +5,15 @@ public struct WindowEntry: Equatable, Identifiable {
     public let pid: pid_t
     public let appName: String
     public let title: String
+    public let hasModal: Bool      // a sheet/modal is attached (e.g. "unsaved changes")
 
-    public init(id: UInt32, pid: pid_t, appName: String, title: String) {
+    public init(id: UInt32, pid: pid_t, appName: String, title: String,
+                hasModal: Bool = false) {
         self.id = id
         self.pid = pid
         self.appName = appName
         self.title = title
+        self.hasModal = hasModal
     }
 }
 

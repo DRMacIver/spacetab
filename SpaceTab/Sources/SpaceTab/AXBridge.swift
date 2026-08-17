@@ -22,12 +22,30 @@ enum AXBridge {
         return nil
     }
 
-    static func title(windowID: UInt32, pid: pid_t) -> String? {
-        guard let w = axWindow(windowID: windowID, pid: pid) else { return nil }
+    static func title(of window: AXUIElement) -> String? {
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(w, kAXTitleAttribute as CFString, &value)
+        guard AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &value)
                 == .success else { return nil }
         return value as? String
+    }
+
+    static func title(windowID: UInt32, pid: pid_t) -> String? {
+        axWindow(windowID: windowID, pid: pid).flatMap(title(of:))
+    }
+
+    /// Whether the window has a sheet attached (the "unsaved changes" kind
+    /// that blocks closing).
+    static func hasSheet(_ window: AXUIElement) -> Bool {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            window, kAXChildrenAttribute as CFString, &value) == .success,
+              let children = value as? [AXUIElement] else { return false }
+        return children.contains { child in
+            var role: CFTypeRef?
+            return AXUIElementCopyAttributeValue(
+                child, kAXRoleAttribute as CFString, &role) == .success
+                && (role as? String) == "AXSheet"
+        }
     }
 
     /// Press the window's close button. Returns false when the window has no

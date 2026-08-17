@@ -125,7 +125,10 @@ final class EventTap {
             if !ok {
                 NSLog("SpaceTab: could not close window \(target.id) (\(target.appName))")
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            // Generous delay: some windows take over a second to close, and
+            // an early rebuild briefly resurrects them (disappear-reappear-
+            // disappear). Windows that refused come back with a modal badge.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 guard let old = self.model else { return }
                 guard var fresh = SwitcherModel(columns: WindowList.snapshot()) else {
                     self.cancel()

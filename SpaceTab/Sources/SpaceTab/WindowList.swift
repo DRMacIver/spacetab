@@ -46,11 +46,15 @@ enum WindowList {
               (bounds["Height"]?.doubleValue ?? 0) >= 50
         else { return nil }
         let appName = d[kCGWindowOwnerName as String] as? String ?? "?"
+        // One AX lookup serves both the title fallback and the sheet check.
+        let ax = AXBridge.axWindow(windowID: id, pid: pid)
         // kCGWindowName needs Screen Recording permission; fall back to AX.
         var title = d[kCGWindowName as String] as? String ?? ""
-        if title.isEmpty {
-            title = AXBridge.title(windowID: id, pid: pid) ?? ""
+        if title.isEmpty, let ax {
+            title = AXBridge.title(of: ax) ?? ""
         }
-        return WindowEntry(id: id, pid: pid, appName: appName, title: title)
+        let hasModal = ax.map(AXBridge.hasSheet) ?? false
+        return WindowEntry(id: id, pid: pid, appName: appName, title: title,
+                           hasModal: hasModal)
     }
 }

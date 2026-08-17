@@ -78,6 +78,13 @@ struct SwitcherView: View {
                         .foregroundStyle(.secondary).lineLimit(1)
                 }
             }
+            if window.hasModal {
+                Spacer(minLength: 4)
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .help("A dialog is blocking this window")
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
