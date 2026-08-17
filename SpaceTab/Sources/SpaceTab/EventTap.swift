@@ -8,6 +8,8 @@ final class EventTap {
     private let panel = SwitcherPanel()
     private var model: SwitcherModel?
     private var tap: CFMachPort?
+    private var pendingShow: DispatchWorkItem?
+    private var panelVisible = false
 
     private enum Key: Int64 {
         case tab = 48, escape = 53, ret = 36, w = 13
@@ -92,11 +94,22 @@ final class EventTap {
             m.moveUp()  // undo the default second-window selection, then step back
         }
         model = m
-        panel.show(model: m)
+        // Don't flash the panel on a quick Cmd-Tab: only draw it if the
+        // switcher is still up after a short delay.
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let m = self.model else { return }
+            self.panelVisible = true
+            self.panel.show(model: m)
+        }
+        pendingShow = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
     }
 
     private func commit() {
         guard let m = model else { return }
+        pendingShow?.cancel()
+        pendingShow = nil
+        panelVisible = false
         panel.hide()
         model = nil
         let target = m.selectedWindow
@@ -142,6 +155,9 @@ final class EventTap {
     }
 
     private func cancel() {
+        pendingShow?.cancel()
+        pendingShow = nil
+        panelVisible = false
         panel.hide()
         model = nil
     }
