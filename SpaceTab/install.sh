@@ -17,6 +17,14 @@ launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
 
 cp .build/release/SpaceTab "$BIN_DIR/spacetab"
 
+# Sign with a stable identity so the Accessibility grant survives rebuilds
+# (ad-hoc signatures change every build, making TCC treat it as a new app).
+if security find-identity -v -p codesigning | grep -q "SpaceTab Dev"; then
+    codesign -f -s "SpaceTab Dev" --identifier com.drmaciver.spacetab "$BIN_DIR/spacetab"
+else
+    echo "warning: no 'SpaceTab Dev' certificate; using ad-hoc signing" >&2
+fi
+
 cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"

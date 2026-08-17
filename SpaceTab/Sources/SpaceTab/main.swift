@@ -11,13 +11,20 @@ if CommandLine.arguments.contains("--list") {
     exit(0)
 }
 
-// Prompt for Accessibility permission if not yet granted.
-let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
-if !AXIsProcessTrustedWithOptions(options) {
+// Prompt for Accessibility permission once, then wait quietly for the grant.
+// Exiting here instead would make launchd (KeepAlive) respawn us and prompt
+// again on every relaunch.
+if !AXIsProcessTrusted() {
+    let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+    _ = AXIsProcessTrustedWithOptions(options)
     fputs("""
     SpaceTab needs Accessibility permission (System Settings > Privacy & \
-    Security > Accessibility). Grant it, then relaunch.
+    Security > Accessibility). Waiting for the grant...
     """ + "\n", stderr)
+    while !AXIsProcessTrusted() {
+        Thread.sleep(forTimeInterval: 3)
+    }
+    fputs("Accessibility granted.\n", stderr)
 }
 
 let app = NSApplication.shared
