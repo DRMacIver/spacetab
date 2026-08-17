@@ -4,6 +4,11 @@ import SpaceTabCore
 /// Builds the per-space window columns by combining SkyLight space/window
 /// enumeration with public CGWindowList metadata.
 enum WindowList {
+    /// Last known title per window. Without Screen Recording permission,
+    /// kCGWindowName is empty and AX can't see other-space windows — but a
+    /// title seen while a window was reachable stays valid until revisited.
+    private static var titleCache: [UInt32: String] = [:]
+
     static func snapshot() -> [SpaceColumn] {
         // CGWindowListCreateDescriptionFromArray returns nothing on modern
         // macOS, so fetch every window's description once and join by ID.
@@ -52,6 +57,11 @@ enum WindowList {
         var title = d[kCGWindowName as String] as? String ?? ""
         if title.isEmpty, let ax {
             title = AXBridge.title(of: ax) ?? ""
+        }
+        if title.isEmpty {
+            title = titleCache[id] ?? ""
+        } else {
+            titleCache[id] = title
         }
         let hasModal = ax.map(AXBridge.hasSheet) ?? false
         return WindowEntry(id: id, pid: pid, appName: appName, title: title,
