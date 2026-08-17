@@ -97,7 +97,8 @@ final class EventTap {
         panel.hide()
         model = nil
         let target = m.selectedWindow
-        WindowFocus.focus(windowID: target.id, pid: target.pid)
+        WindowFocus.focus(windowID: target.id, pid: target.pid,
+                          spaceID: m.columns[m.selectedColumn].id)
     }
 
     private func cancel() {

@@ -26,7 +26,27 @@ enum SkyLight {
     static let copyWindowsWithOptionsAndTags =
         sym("SLSCopyWindowsWithOptionsAndTags", CopyWindowsWithOptionsAndTags.self)
 
+    typealias ManagedDisplaySetCurrentSpace = @convention(c) (Int32, CFString, UInt64) -> Void
+    static let managedDisplaySetCurrentSpace =
+        sym("SLSManagedDisplaySetCurrentSpace", ManagedDisplaySetCurrentSpace.self)
+
     static let connection: Int32 = mainConnectionID()
+
+    /// Switch the view to the given space if it isn't already current.
+    static func switchTo(space spaceID: UInt64) {
+        guard getActiveSpace(connection) != spaceID else { return }
+        let displays = copyManagedDisplaySpaces(connection).takeRetainedValue()
+            as! [[String: Any]]
+        for display in displays {
+            guard let uuid = display["Display Identifier"] as? String else { continue }
+            let ids = (display["Spaces"] as? [[String: Any]] ?? [])
+                .compactMap { $0["ManagedSpaceID"] as? UInt64 }
+            if ids.contains(spaceID) {
+                managedDisplaySetCurrentSpace(connection, uuid as CFString, spaceID)
+                return
+            }
+        }
+    }
 
     struct SpaceInfo {
         let id: UInt64
