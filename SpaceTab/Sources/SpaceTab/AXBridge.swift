@@ -34,8 +34,16 @@ enum AXBridge {
     /// space as part of the activation.
     static func focus(windowID: UInt32, pid: pid_t) {
         if let w = axWindow(windowID: windowID, pid: pid) {
+            let app = AXUIElementCreateApplication(pid)
             AXUIElementPerformAction(w, kAXRaiseAction as CFString)
             AXUIElementSetAttributeValue(w, kAXMainAttribute as CFString, kCFBooleanTrue)
+            // AXRaise alone doesn't move keyboard focus when the app is
+            // already frontmost (same-app window switching).
+            AXUIElementSetAttributeValue(w, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+            AXUIElementSetAttributeValue(
+                app, kAXFocusedWindowAttribute as CFString, w)
+        } else {
+            NSLog("SpaceTab: no AX window match for id \(windowID) pid \(pid)")
         }
         NSRunningApplication(processIdentifier: pid)?
             .activate(options: [.activateIgnoringOtherApps])
