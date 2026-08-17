@@ -30,6 +30,40 @@ enum AXBridge {
         return value as? String
     }
 
+    /// Press the window's close button. Returns false when the window has no
+    /// AX element visible to us (typically: it lives on another space).
+    @discardableResult
+    static func close(windowID: UInt32, pid: pid_t) -> Bool {
+        guard let w = axWindow(windowID: windowID, pid: pid) else { return false }
+        var button: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            w, kAXCloseButtonAttribute as CFString, &button) == .success
+        else { return false }
+        return AXUIElementPerformAction(
+            button as! AXUIElement, kAXPressAction as CFString) == .success
+    }
+
+    /// Close a window that may live on another space: AX can't see those, so
+    /// hop to the space, close, and hop back.
+    static func close(windowID: UInt32, pid: pid_t, spaceID: UInt64,
+                      completion: @escaping (Bool) -> Void) {
+        if close(windowID: windowID, pid: pid) {
+            completion(true)
+            return
+        }
+        let originalSpace = SkyLight.getActiveSpace(SkyLight.connection)
+        guard originalSpace != spaceID else {
+            completion(false)
+            return
+        }
+        SkyLight.switchTo(space: spaceID)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            let ok = close(windowID: windowID, pid: pid)
+            SkyLight.switchTo(space: originalSpace)
+            completion(ok)
+        }
+    }
+
     /// Raise the window and activate its app. macOS switches to the window's
     /// space as part of the activation.
     static func focus(windowID: UInt32, pid: pid_t) {

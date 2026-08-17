@@ -27,6 +27,7 @@ let eventTap = EventTap()
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        FocusTracker.shared.start()
         eventTap.start()
         NSLog("SpaceTab running. Cmd-Tab to open; arrows navigate; release Cmd to switch.")
     }

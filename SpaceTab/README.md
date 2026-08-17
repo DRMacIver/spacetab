@@ -5,6 +5,7 @@ A Cmd-Tab replacement: vertical window lists, one column per space.
 - **Cmd-Tab** opens the switcher (and steps to the next window); hold Cmd.
 - **Tab / Down / Up** move within the current column (wrapping).
 - **Left / Right** move between spaces.
+- **W** closes the selected window (hops to its space and back if needed).
 - **Release Cmd** (or Return) to switch to the selected window.
 - **Escape** cancels.
 

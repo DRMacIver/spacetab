@@ -64,6 +64,24 @@ public struct SwitcherModel: Equatable {
         selectedRow = (selectedRow - 1 + count) % count
     }
 
+    /// Move selection as close as possible to (column, row) — used to keep
+    /// the selection in place when the window list is rebuilt (e.g. after
+    /// closing a window). Falls back to the nearest non-empty column.
+    public mutating func select(column: Int, row: Int) {
+        let n = columns.count
+        let target = min(max(column, 0), n - 1)
+        for offset in 0..<n {
+            for candidate in [target + offset, target - offset] {
+                if columns.indices.contains(candidate),
+                   !columns[candidate].windows.isEmpty {
+                    selectedColumn = candidate
+                    selectedRow = min(max(row, 0), columns[candidate].windows.count - 1)
+                    return
+                }
+            }
+        }
+    }
+
     public mutating func moveRight() { moveHorizontally(by: 1) }
     public mutating func moveLeft() { moveHorizontally(by: -1) }
 

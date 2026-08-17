@@ -19,7 +19,19 @@ enum WindowList {
             let entries = SkyLight.windows(onSpace: space.id).compactMap {
                 entry(id: $0, desc: byID[$0])
             }
-            return SpaceColumn(id: space.id, isCurrent: space.isCurrent, windows: entries)
+            // MRU first (tracked by FocusTracker); untracked windows keep
+            // their z-order after them. Stable sort preserves ties.
+            let ordered = entries.enumerated().sorted { a, b in
+                let ta = FocusTracker.shared.lastFocus[a.element.id]
+                let tb = FocusTracker.shared.lastFocus[b.element.id]
+                switch (ta, tb) {
+                case let (x?, y?): return x > y
+                case (_?, nil): return true
+                case (nil, _?): return false
+                case (nil, nil): return a.offset < b.offset
+                }
+            }.map(\.element)
+            return SpaceColumn(id: space.id, isCurrent: space.isCurrent, windows: ordered)
         }
     }
 

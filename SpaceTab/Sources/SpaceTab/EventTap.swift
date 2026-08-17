@@ -10,7 +10,7 @@ final class EventTap {
     private var tap: CFMachPort?
 
     private enum Key: Int64 {
-        case tab = 48, escape = 53, ret = 36
+        case tab = 48, escape = 53, ret = 36, w = 13
         case left = 123, right = 124, down = 125, up = 126
     }
 
@@ -74,6 +74,9 @@ final class EventTap {
         case .ret:
             commit()
             return nil
+        case .w:
+            closeSelected()
+            return nil
         case nil:
             return nil  // swallow everything else while active
         }
@@ -99,6 +102,30 @@ final class EventTap {
         let target = m.selectedWindow
         WindowFocus.focus(windowID: target.id, pid: target.pid,
                           spaceID: m.columns[m.selectedColumn].id)
+    }
+
+    private func closeSelected() {
+        guard let m = model else { return }
+        let target = m.selectedWindow
+        AXBridge.close(windowID: target.id, pid: target.pid,
+                       spaceID: m.columns[m.selectedColumn].id) { [weak self] ok in
+            guard let self else { return }
+            if !ok {
+                NSLog("SpaceTab: could not close window \(target.id) (\(target.appName))")
+            }
+            // Rebuild after the window has had a moment to go away, keeping
+            // the selection in place. Cmd may have been released meanwhile.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                guard let old = self.model else { return }
+                guard var fresh = SwitcherModel(columns: WindowList.snapshot()) else {
+                    self.cancel()
+                    return
+                }
+                fresh.select(column: old.selectedColumn, row: old.selectedRow)
+                self.model = fresh
+                self.panel.update(model: fresh)
+            }
+        }
     }
 
     private func cancel() {

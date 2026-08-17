@@ -95,6 +95,28 @@ do {
     check(m.selectedColumn == 0, "noOpSingleColumn")
 }
 
+// select() clamps row and lands on requested column
+do {
+    var m = SwitcherModel(columns: [
+        SpaceColumn(id: 1, isCurrent: true, windows: [w(1), w(2)]),
+        SpaceColumn(id: 2, isCurrent: false, windows: [w(3)]),
+    ])!
+    m.select(column: 1, row: 5)
+    check(m.selectedColumn == 1 && m.selectedWindow == w(3), "selectClampsRow")
+}
+
+// select() falls back to nearest non-empty column
+do {
+    var m = SwitcherModel(columns: [
+        SpaceColumn(id: 1, isCurrent: true, windows: [w(1), w(2)]),
+        SpaceColumn(id: 2, isCurrent: false, windows: []),
+    ])!
+    m.select(column: 1, row: 0)
+    check(m.selectedColumn == 0, "selectFallsBackToNonEmpty")
+    m.select(column: -3, row: 1)
+    check(m.selectedColumn == 0 && m.selectedRow == 1, "selectClampsColumn")
+}
+
 if failures > 0 {
     print("\(failures) failure(s)")
     exit(1)
