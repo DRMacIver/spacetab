@@ -33,3 +33,14 @@ the Accessibility API, so no Screen Recording permission is needed.
   owns the keyboard while the panel is up.
 - Switching raises the target via AX (`AXRaise` + app activation), which
   makes macOS jump to its space.
+
+## Installing at login
+
+```sh
+./install.sh   # builds release, installs ~/.local/bin/spacetab, loads LaunchAgent
+```
+
+Re-run after code changes. The binary is unsigned, so macOS may require
+re-granting Accessibility after a rebuild. Logs: ~/Library/Logs/spacetab.log.
+To uninstall: `launchctl bootout gui/$UID/com.drmaciver.spacetab` and delete
+~/Library/LaunchAgents/com.drmaciver.spacetab.plist.
