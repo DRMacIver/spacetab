@@ -105,7 +105,12 @@ public struct LauncherModel: Equatable {
         var ranked: [Ranked] = []
         for app in apps {
             if let tier = matchTier(query: query, in: app.name) {
-                ranked.append(Ranked(result: .app(app), tier: tier,
+                // Non-running apps rank below live windows and running apps
+                // of comparable match quality: a name-prefix match on a
+                // not-running app shouldn't outrank an open window the user
+                // is actually working in.
+                let penalty = app.pid == nil ? 2 : 0
+                ranked.append(Ranked(result: .app(app), tier: tier + penalty,
                                      recency: app.lastUsed ?? .distantPast,
                                      name: app.name))
             }

@@ -232,6 +232,33 @@ do {
     if case .app(let a) = m.results[1] { check(a.name == "Alpha", "unusedAlphabetical") }
 }
 
+// live window beats name-prefix match of a non-running app
+do {
+    var m = LauncherModel(
+        apps: [app("Audio MIDI Setup", running: false)],
+        windows: [lwin(1, app: "Google Chrome", title: "Audible - Library",
+                       lastFocus: now)])
+    m.type("audi")
+    if case .window(let w)? = m.selectedResult {
+        check(w.window.title == "Audible - Library", "liveWindowBeatsNonRunningApp")
+    } else {
+        check(false, "liveWindowBeatsNonRunningApp")
+    }
+}
+
+// but a non-running exact match still beats a fuzzy window match
+do {
+    var m = LauncherModel(
+        apps: [app("Slack", running: false)],
+        windows: [lwin(1, app: "Ghostty", title: "sales check", lastFocus: now)])
+    m.type("slack")
+    if case .app(let a)? = m.selectedResult {
+        check(a.name == "Slack", "nonRunningExactBeatsFuzzyWindow")
+    } else {
+        check(false, "nonRunningExactBeatsFuzzyWindow")
+    }
+}
+
 // typing resets selection; navigation clamps
 do {
     var m = LauncherModel(apps: [app("A1"), app("A2")], windows: [])
