@@ -145,6 +145,109 @@ do {
     check(!m.removeSelectedWindow(), "removeLastWindowReturnsFalse")
 }
 
+// --- LauncherModel ---
+
+func app(_ name: String, lastUsed: Date? = nil, running: Bool = true) -> LauncherApp {
+    LauncherApp(name: name, bundleID: "test.\(name)", path: "/Applications/\(name).app",
+                pid: running ? 100 : nil, lastUsed: lastUsed)
+}
+
+func lwin(_ id: UInt32, app appName: String, title: String, lastFocus: Date? = nil) -> LauncherWindow {
+    LauncherWindow(
+        window: WindowEntry(id: id, pid: 100, appName: appName, title: title),
+        spaceID: 1, lastFocus: lastFocus)
+}
+
+// match tiers
+check(matchTier(query: "gho", in: "Ghostty") == 0, "tierPrefix")
+check(matchTier(query: "chr", in: "Google Chrome") == 1, "tierWordPrefix")
+check(matchTier(query: "ost", in: "Ghostty") == 2, "tierSubstring")
+check(matchTier(query: "gty", in: "Ghostty") == 3, "tierSubsequence")
+check(matchTier(query: "xyz", in: "Ghostty") == nil, "tierNoMatch")
+check(matchTier(query: "", in: "anything") == 0, "tierEmptyQuery")
+
+let now = Date()
+
+// prefix app beats recent-but-weaker window match
+do {
+    var m = LauncherModel(
+        apps: [app("Ghostty", lastUsed: now.addingTimeInterval(-60))],
+        windows: [lwin(1, app: "Google Chrome", title: "The Ghost of Tsushima",
+                       lastFocus: now)])
+    m.type("gho")
+    check(m.selectedResult == .app(app("Ghostty", lastUsed: now.addingTimeInterval(-60))),
+          "prefixAppBeatsWeakerWindow")
+}
+
+// app ranks above its own windows when its lastUsed is most recent
+do {
+    var m = LauncherModel(
+        apps: [app("Ghostty", lastUsed: now)],
+        windows: [lwin(1, app: "Ghostty", title: "shell",
+                       lastFocus: now.addingTimeInterval(-10))])
+    m.type("gho")
+    if case .app(let a)? = m.selectedResult {
+        check(a.name == "Ghostty", "appFirstWhenMostRecent")
+    } else {
+        check(false, "appFirstWhenMostRecent")
+    }
+    check(m.results.count == 2, "windowsListedBelowApp")
+}
+
+// title match surfaces a window when no app matches
+do {
+    var m = LauncherModel(
+        apps: [app("Google Chrome", lastUsed: now)],
+        windows: [lwin(1, app: "Google Chrome", title: "Audible - Library",
+                       lastFocus: now.addingTimeInterval(-5))])
+    m.type("audible")
+    if case .window(let w)? = m.selectedResult {
+        check(w.window.title == "Audible - Library", "titleMatchTopsWindow")
+    } else {
+        check(false, "titleMatchTopsWindow")
+    }
+}
+
+// recency breaks ties within a tier
+do {
+    var m = LauncherModel(
+        apps: [app("Ghostty", lastUsed: now.addingTimeInterval(-100)),
+               app("Ghidra", lastUsed: now)],
+        windows: [])
+    m.type("gh")
+    if case .app(let a)? = m.selectedResult {
+        check(a.name == "Ghidra", "recencyBreaksTies")
+    } else {
+        check(false, "recencyBreaksTies")
+    }
+}
+
+// never-used apps sort after used ones, alphabetically
+do {
+    var m = LauncherModel(
+        apps: [app("Zebra"), app("Alpha"), app("Mid", lastUsed: now)],
+        windows: [])
+    m.type("")
+    if case .app(let a)? = m.selectedResult { check(a.name == "Mid", "usedBeforeUnused") }
+    if case .app(let a) = m.results[1] { check(a.name == "Alpha", "unusedAlphabetical") }
+}
+
+// typing resets selection; navigation clamps
+do {
+    var m = LauncherModel(apps: [app("A1"), app("A2")], windows: [])
+    m.type("a")
+    m.moveDown()
+    check(m.selected == 1, "launcherMoveDown")
+    m.moveDown()
+    check(m.selected == 1, "launcherMoveDownClamps")
+    m.type("1")
+    check(m.selected == 0 && m.results.count == 1, "typingResetsSelection")
+    m.moveUp()
+    check(m.selected == 0, "launcherMoveUpClamps")
+    m.backspace()
+    check(m.results.count == 2, "backspaceWidens")
+}
+
 if failures > 0 {
     print("\(failures) failure(s)")
     exit(1)

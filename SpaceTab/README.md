@@ -1,6 +1,7 @@
 # SpaceTab
 
 A Cmd-Tab replacement: vertical window lists, one column per space.
+Also a Cmd-Space launcher: type to open apps and windows.
 
 - **Cmd-Tab** opens the switcher (and steps to the next window); hold Cmd.
 - **Tab / Down / Up** move within the current column (wrapping).
@@ -8,6 +9,17 @@ A Cmd-Tab replacement: vertical window lists, one column per space.
 - **W** closes the selected window (hops to its space and back if needed).
 - **Release Cmd** (or Return) to switch to the selected window.
 - **Escape** cancels.
+
+### Launcher (Cmd-Space)
+
+- Type to match applications (by name) and open windows (by title or app
+  name). Ranked by match quality, then recency of use.
+- **Enter** on an app opens a new window on the current space (via a Cmd-N
+  probe posted to the app; apps that ignore it are remembered in
+  `defaults read com.drmaciver.spacetab appsWithoutNewWindowSupport` and get
+  switch-to-existing-window behaviour immediately). Not-running apps are
+  launched. **Enter** on a window switches to it, changing space if needed.
+- **Up/Down/Tab** navigate, **Escape** or **Cmd-Space** dismisses.
 
 ## Running
 

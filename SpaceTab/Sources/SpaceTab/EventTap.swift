@@ -10,8 +10,11 @@ final class EventTap {
     private var tap: CFMachPort?
     private var pendingShow: DispatchWorkItem?
 
+    private let launcherPanel = LauncherPanel()
+    private var launcher: LauncherModel?
+
     private enum Key: Int64 {
-        case tab = 48, escape = 53, ret = 36, w = 13
+        case tab = 48, escape = 53, ret = 36, w = 13, space = 49, delete = 51
         case left = 123, right = 124, down = 125, up = 126
     }
 
@@ -48,13 +51,26 @@ final class EventTap {
         let cmdHeld = event.flags.contains(.maskCommand)
         let shiftHeld = event.flags.contains(.maskShift)
 
+        if launcher != nil {
+            return handleLauncher(type: type, event: event, keycode: keycode,
+                                  cmdHeld: cmdHeld)
+        }
+
         if model == nil {
-            // Inactive: only Cmd-Tab interests us.
-            guard type == .keyDown, cmdHeld, keycode == Key.tab.rawValue else {
+            // Inactive: Cmd-Tab opens the switcher, Cmd-Space the launcher.
+            guard type == .keyDown, cmdHeld else {
                 return Unmanaged.passUnretained(event)
             }
-            activate(backwards: shiftHeld)
-            return nil
+            switch keycode {
+            case Key.tab.rawValue:
+                activate(backwards: shiftHeld)
+                return nil
+            case Key.space.rawValue:
+                activateLauncher()
+                return nil
+            default:
+                return Unmanaged.passUnretained(event)
+            }
         }
 
         // Active.
@@ -78,12 +94,84 @@ final class EventTap {
         case .w:
             closeSelected()
             return nil
-        case nil:
+        default:
             return nil  // swallow everything else while active
         }
         model = m
         panel.update(model: m)
         return nil
+    }
+
+    // MARK: - Launcher (Cmd-Space)
+
+    private func activateLauncher() {
+        AppCatalog.rescanInstalled()
+        var windows: [LauncherWindow] = []
+        for column in WindowList.snapshot() {
+            for w in column.windows {
+                windows.append(LauncherWindow(
+                    window: w, spaceID: column.id,
+                    lastFocus: FocusTracker.shared.lastFocus[w.id]))
+            }
+        }
+        let m = LauncherModel(apps: AppCatalog.candidates(), windows: windows)
+        launcher = m
+        launcherPanel.show(model: m)
+    }
+
+    private func handleLauncher(type: CGEventType, event: CGEvent,
+                                keycode: Int64, cmdHeld: Bool) -> Unmanaged<CGEvent>? {
+        guard type == .keyDown else { return nil }  // swallow flag changes etc.
+        guard var m = launcher else { return nil }
+        switch Key(rawValue: keycode) {
+        case .escape:
+            dismissLauncher()
+            return nil
+        case .space where cmdHeld:
+            dismissLauncher()  // Cmd-Space toggles
+            return nil
+        case .ret:
+            let result = m.selectedResult
+            dismissLauncher()
+            if let result { LauncherActions.perform(result) }
+            return nil
+        case .down:
+            m.moveDown()
+        case .up:
+            m.moveUp()
+        case .tab where !cmdHeld:
+            m.moveDown()
+        case .delete:
+            m.backspace()
+        case .left, .right:
+            break
+        default:
+            if !cmdHeld, let chars = typedCharacters(from: event), !chars.isEmpty {
+                m.type(chars)
+            }
+        }
+        launcher = m
+        launcherPanel.update(model: m)
+        return nil
+    }
+
+    private func dismissLauncher() {
+        launcherPanel.hide()
+        launcher = nil
+    }
+
+    private func typedCharacters(from event: CGEvent) -> String? {
+        var length = 0
+        var buffer = [UniChar](repeating: 0, count: 8)
+        event.keyboardGetUnicodeString(maxStringLength: buffer.count,
+                                       actualStringLength: &length,
+                                       unicodeString: &buffer)
+        guard length > 0 else { return nil }
+        let s = String(utf16CodeUnits: buffer, count: length)
+        // Printable characters only — no control chars from arrows etc.
+        return s.allSatisfy { !$0.isNewline && ($0 == " " || !$0.unicodeScalars
+            .contains(where: { $0.properties.generalCategory == .control })) }
+            ? s : nil
     }
 
     private func activate(backwards: Bool) {

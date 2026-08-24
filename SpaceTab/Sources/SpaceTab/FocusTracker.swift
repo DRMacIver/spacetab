@@ -7,6 +7,7 @@ import ApplicationServices
 final class FocusTracker {
     static let shared = FocusTracker()
     private(set) var lastFocus: [UInt32: Date] = [:]
+    private(set) var appLastUsed: [String: Date] = [:]  // by bundle ID
     private var observers: [pid_t: AXObserver] = [:]
 
     func start() {
@@ -27,6 +28,9 @@ final class FocusTracker {
             if let app = note.userInfo?[NSWorkspace.applicationUserInfoKey]
                 as? NSRunningApplication {
                 self?.stampFocusedWindow(pid: app.processIdentifier)
+                if let id = app.bundleIdentifier {
+                    self?.appLastUsed[id] = Date()
+                }
             }
         }
         nc.addObserver(forName: NSWorkspace.didTerminateApplicationNotification,
