@@ -259,6 +259,48 @@ do {
     }
 }
 
+// app beats its own recently focused windows when the query matches the app
+// name — even though window focus is fresher than the app's lastUsed
+do {
+    var m = LauncherModel(
+        apps: [app("Ghostty", lastUsed: now.addingTimeInterval(-3600))],
+        windows: [lwin(1, app: "Ghostty", title: "vim notes.md", lastFocus: now),
+                  lwin(2, app: "Ghostty", title: "zsh", lastFocus: now.addingTimeInterval(-5))])
+    m.type("ghost")
+    if case .app(let a)? = m.selectedResult {
+        check(a.name == "Ghostty", "appBeatsOwnRecentWindows")
+    } else {
+        check(false, "appBeatsOwnRecentWindows")
+    }
+}
+
+// a title that merely embeds the app name doesn't dodge the demotion
+do {
+    var m = LauncherModel(
+        apps: [app("Google Chrome", lastUsed: now.addingTimeInterval(-3600))],
+        windows: [lwin(1, app: "Google Chrome", title: "Downloads - Google Chrome",
+                       lastFocus: now)])
+    m.type("chrome")
+    if case .app(let a)? = m.selectedResult {
+        check(a.name == "Google Chrome", "embeddedAppNameTitleStillDemoted")
+    } else {
+        check(false, "embeddedAppNameTitleStillDemoted")
+    }
+}
+
+// a strictly better title match still competes with apps on recency
+do {
+    var m = LauncherModel(
+        apps: [app("Ghidra", lastUsed: now.addingTimeInterval(-60))],
+        windows: [lwin(1, app: "Google Chrome", title: "Ghidra docs", lastFocus: now)])
+    m.type("ghidra")
+    if case .window(let w)? = m.selectedResult {
+        check(w.window.title == "Ghidra docs", "titleMatchStillCompetesOnRecency")
+    } else {
+        check(false, "titleMatchStillCompetesOnRecency")
+    }
+}
+
 // typing resets selection; navigation clamps
 do {
     var m = LauncherModel(apps: [app("A1"), app("A2")], windows: [])

@@ -54,6 +54,8 @@ public func matchTier(query: String, in text: String) -> Int? {
 
 /// Query/selection state for the launcher. Results are ranked by match
 /// quality first, then recency of use; never-used items sort last, by name.
+/// Within a tier, windows that only match through their app name sort after
+/// app entries, so typing an app's name offers the app before its windows.
 public struct LauncherModel: Equatable {
     public var maxResults = 12
     public private(set) var query = ""
@@ -97,6 +99,11 @@ public struct LauncherModel: Equatable {
     private struct Ranked {
         let result: LauncherResult
         let tier: Int
+        // Windows that match only through their app name sort after the app
+        // entry itself: "chrome" should offer Google Chrome (new window)
+        // before some recently focused Chrome window. Title matches are the
+        // window's own merit and still compete with apps on recency.
+        let demoted: Bool
         let recency: Date
         let name: String
     }
@@ -111,21 +118,28 @@ public struct LauncherModel: Equatable {
                 // is actually working in.
                 let penalty = app.pid == nil ? 2 : 0
                 ranked.append(Ranked(result: .app(app), tier: tier + penalty,
+                                     demoted: false,
                                      recency: app.lastUsed ?? .distantPast,
                                      name: app.name))
             }
         }
         for w in windows {
-            let tiers = [matchTier(query: query, in: w.window.title),
-                         matchTier(query: query, in: w.window.appName)]
-            if let tier = tiers.compactMap({ $0 }).min() {
+            let titleTier = matchTier(query: query, in: w.window.title)
+            let appTier = matchTier(query: query, in: w.window.appName)
+            if let tier = [titleTier, appTier].compactMap({ $0 }).min() {
+                // Demoted unless the title match is strictly better than the
+                // app-name match: titles often embed the app name, and an
+                // equal-tier title match is usually just that.
+                let demoted = (appTier ?? .max) <= (titleTier ?? .max)
                 ranked.append(Ranked(result: .window(w), tier: tier,
+                                     demoted: demoted,
                                      recency: w.lastFocus ?? .distantPast,
                                      name: w.window.appName))
             }
         }
         results = ranked.sorted { a, b in
             if a.tier != b.tier { return a.tier < b.tier }
+            if a.demoted != b.demoted { return !a.demoted }
             if a.recency != b.recency { return a.recency > b.recency }
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }.prefix(maxResults).map(\.result)

@@ -48,8 +48,11 @@ Requires macOS 13+ and a Swift toolchain (Command Line Tools are enough).
 This builds a release binary, installs it to `~/.local/bin/spacetab`, and
 loads a login LaunchAgent so it starts automatically. Then grant
 **Accessibility** permission to `~/.local/bin/spacetab` in System Settings >
-Privacy & Security > Accessibility (the app waits for the grant and starts
-working as soon as it appears — no relaunch needed).
+Privacy & Security > Accessibility. For a first-time grant the app waits and
+starts working as soon as it appears — no relaunch needed. But if you
+*remove and re-add* an existing entry (e.g. after a signature change), the
+running process never sees the new grant — restart it with
+`launchctl kickstart -k gui/$UID/com.drmaciver.spacetab`.
 
 Optional: **Screen Recording** permission gives the switcher and launcher
 always-fresh window titles on every space. Without it, titles come from the
@@ -68,11 +71,29 @@ openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 3650 \
   -nodes -subj "/CN=SpaceTab Dev" \
   -addext "extendedKeyUsage=codeSigning" -addext "keyUsage=digitalSignature" \
   -addext "basicConstraints=critical,CA:false"
-openssl pkcs12 -export -legacy -out st.p12 -inkey key.pem -in cert.pem -passout pass:spacetab
+openssl pkcs12 -export -out st.p12 -inkey key.pem -in cert.pem -passout pass:spacetab
 security import st.p12 -k ~/Library/Keychains/login.keychain-db -P spacetab -T /usr/bin/codesign
 security add-trusted-cert -r trustRoot -p codeSign -k ~/Library/Keychains/login.keychain-db cert.pem
 rm key.pem cert.pem st.p12
 ```
+
+Notes:
+
+- These commands assume the system `/usr/bin/openssl` (LibreSSL). If you use
+  OpenSSL 3 instead (e.g. from Homebrew), add `-legacy` to the
+  `openssl pkcs12` command — its default encryption produces a p12 that
+  `security import` can't read. Conversely, LibreSSL rejects `-legacy` as an
+  unknown option, and the failed export leaves you with a certificate but no
+  private key in the keychain (the identity then never shows up as valid).
+- `security add-trusted-cert` pops an authorization dialog; approve it.
+- Verify with `security find-identity -v -p codesigning` — it should list
+  `SpaceTab Dev` as a valid identity. If it doesn't, delete the half-imported
+  cert with `security delete-certificate -c "SpaceTab Dev"` and start over.
+
+Then re-run `./install.sh`. Switching from an ad-hoc build to a signed one
+changes the code signature, so you must re-grant Accessibility one final
+time (see below); after that, rebuilds keep the same identity and the grant
+survives.
 
 If a rebuild ever invalidates the grant anyway: remove the entry in the
 Accessibility list, re-add the binary, and
